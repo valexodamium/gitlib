@@ -9,7 +9,6 @@ import           Conduit
 import           Control.Applicative
 import           Control.Exception
 import           Control.Monad
-import           Control.Monad.Fail (MonadFail)
 import           Control.Monad.Trans.State
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Base16 as B16
@@ -138,11 +137,11 @@ newtype SHA = SHA { getSHA :: ByteString } deriving (Eq, Ord, Read)
 shaToText :: SHA -> Text
 shaToText (SHA bs) = T.decodeUtf8 (B16.encode bs)
 
-textToSha :: MonadFail m => Text -> m SHA
+textToSha :: MonadThrow m => Text -> m SHA
 textToSha t =
     case B16.decode $ T.encodeUtf8 t of
         Right bs -> return (SHA bs)
-        Left err -> fail $ "Invalid base16 encoding: " ++ err
+        Left err -> throwM . SHAError . T.pack $ "Invalid base16 encoding: " ++ err
 
 instance IsOid SHA where
     renderOid = shaToText
@@ -431,6 +430,7 @@ data GitException
     | OidCopyFailed
     | OidParseFailed Text
     | QuotaHardLimitExceeded Int Int
+    | SHAError Text
     deriving (Eq, Show, Typeable)
 
 -- jww (2013-02-11): Create a BackendException data constructor of forall
